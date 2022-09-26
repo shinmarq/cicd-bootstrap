@@ -1,0 +1,15 @@
+{
+  "name": "devops-pipeline-bootstrap",
+  "version": "0.1.0",
+  "description": "Bootsrapping Coherent application pipeline",
+  "main": "index.js",
+  "author": "shin.quipit@coherent.global",
+  "bin": {
+    "bootstrap": "index.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "caporal": "^1.4.0",
+    "shelljs": "^0.8.5"
+  }
+}

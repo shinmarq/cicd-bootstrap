@@ -1,0 +1,102 @@
+name: Test and Code Quality
+
+on:
+  workflow_call:
+    secrets:
+      sonarqube-url:
+        required: true
+      sonarqube-token:
+        required: true
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Download .npmrc file
+        uses: actions/download-artifact@v3
+        with:
+          name: npmrc
+
+      - name: Install Dependency
+        run: yarn install # or npm
+
+      - name: Run test-reports
+        run: yarn run test
+
+      - name: Run test-coverage
+        run: yarn run test-coverage
+
+      - name: Upload test-reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: reports
+          path: ./reports
+
+      - name: Upload test-coverage
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage
+          path: ./coverage
+
+  quality:
+    needs: test
+    name: Quality gates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Download test-report
+        uses: actions/download-artifact@v3
+        with:
+          name: reports
+          path: ./reports
+
+      - name: Download test-coverage
+        uses: actions/download-artifact@v3
+        with:
+          name: coverage
+          path: ./coverage
+
+      - name: SonarQube PR Settings
+        run: |
+          if [ -n "${{ github.event.pull_request.number }}" ]
+          then
+          cat << EOF >> sonar-project.properties
+          sonar.pullrequest.branch=${GITHUB_HEAD_REF}
+          sonar.pullrequest.key=${{ github.event.pull_request.number }}
+          sonar.projectVersion=${GITHUB_SHA}
+          sonar.host.url=${{ secrets.sonarqube-url }}
+          sonar.login=${{ secrets.sonarqube-token }}
+          EOF
+          else
+          cat << EOF >> sonar-project.properties
+          sonar.branch.name=${GITHUB_REF_NAME}
+          sonar.projectVersion=${GITHUB_SHA}
+          sonar.host.url=${{ secrets.sonarqube-url }}
+          sonar.login=${{ secrets.sonarqube-token }}
+          EOF
+          fi
+          cat sonar-project.properties
+          mkdir -p /tmp/cache/scanner
+          ls -la
+
+      - name: SonarQube Scan
+        run: |
+          set -e
+          VERSION=4.4.0.2170
+          SCANNER_DIRECTORY=/tmp/cache/scanner
+          export SONAR_USER_HOME=$SCANNER_DIRECTORY/.sonar
+          OS="linux"
+          cat sonar-project.properties
+          if [[ ! -x "$SCANNER_DIRECTORY/sonar-scanner-$VERSION-$OS/bin/sonar-scanner" ]]; then
+              curl -o /tmp/sonar-scanner.zip -L https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-$VERSION-$OS.zip
+              unzip -qq -o /tmp/sonar-scanner.zip -d $SCANNER_DIRECTORY
+          fi
+          chmod +x $SCANNER_DIRECTORY/sonar-scanner-$VERSION-$OS/bin/sonar-scanner
+          chmod +x $SCANNER_DIRECTORY/sonar-scanner-$VERSION-$OS/jre/bin/java
+          $SCANNER_DIRECTORY/sonar-scanner-$VERSION-$OS/bin/sonar-scanner

@@ -1,0 +1,64 @@
+name: Branches Promotions
+
+on:
+  push:
+    branches: # add more branch if necessary
+      - dev
+      - sit
+      - uat
+
+jobs:
+  set-npmrc:
+    uses: ./.github/workflows/set-npmrc.yml
+    secrets:
+      aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      aws-region: ${{ secrets.AWS_REGION }}
+      aws-account: ${{ secrets.AWS_ACCOUNT }}
+
+  test-code-quality:
+    needs: set-npmrc
+    uses: ./.github/workflows/test-code-quality.yml
+    secrets:
+      sonarqube-url: ${{ secrets.SONAR_HOST_URL }}
+      sonarqube-token: ${{ secrets.SONAR_TOKEN }}
+
+  init:
+    needs: test-code-quality
+    name: Initialize
+    runs-on: ubuntu-latest
+    steps:
+      - name: Working Branch
+        run: echo Running on branch ${GITHUB_REF_NAME}
+
+  build-publish:
+    needs: [init,test-code-quality]
+    name: Build and publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Download .npmrc file
+        uses: actions/download-artifact@v3
+        with:
+          name: npmrc
+      - name: Generate Timestamp
+        run: echo TS=$(date +%s) >> $GITHUB_ENV
+      - name: Set branch prefix
+        run: |
+          echo "BRANCH_PREFIX=branch-${GITHUB_REF_NAME}" >> $GITHUB_ENV
+      - name: Set tag names
+        run: |
+          echo "TAG_NAMES=${GITHUB_REF_NAME}-${{ github.sha }}-${{ env.TS }},${{ env.BRANCH_PREFIX }}-${{ github.sha }}" >> $GITHUB_ENV
+      - name: Set image tags
+        run: |
+          echo "IMAGE_TAGS=${{ env.TAG_NAMES }},build-${{ github.run_id }},latest" >> $GITHUB_ENV
+      - name: Publish docker image to AWS ECR
+        uses: kciter/aws-ecr-action@v3
+        with:
+          access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          account_id: ${{ secrets.AWS_ACCOUNT_ID }}
+          repo: ${{ secrets.IMAGE_REPOSITORY }}
+          region: ${{ secrets.AWS_REGION }}
+          tags: ${{ env.IMAGE_TAGS }}
+          create_repo: true

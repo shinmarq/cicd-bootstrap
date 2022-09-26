@@ -1,0 +1,40 @@
+name: Set .npmrc
+
+on:
+  workflow_call:
+    secrets:
+      aws-access-key-id:
+        required: true
+      aws-secret-access-key:
+        required: true
+      aws-region:
+        required: true
+      aws-account:
+        required: true
+
+jobs:
+  get-auth-token:
+    name: Get authorization token
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.aws-access-key-id }}
+          aws-secret-access-key: ${{ secrets.aws-secret-access-key }}
+          aws-region: ${{ secrets.aws-region }}
+      - name: get-authorization-token
+        env:
+          AWS_ACCOUNT: ${{ secrets.aws-account }}
+        run: |
+          export CODEARTIFACT_AUTH_TOKEN=`aws codeartifact get-authorization-token --domain coherent-global --domain-owner $AWS_ACCOUNT --query authorizationToken --output text`
+          cat <<EOF >> .npmrc
+          registry=https://registry.npmjs.org
+          @coherentglobal:registry=https://coherent-global-$AWS_ACCOUNT.d.codeartifact.ap-southeast-1.amazonaws.com/npm/coherent-global/
+          //coherent-global-$AWS_ACCOUNT.d.codeartifact.ap-southeast-1.amazonaws.com/npm/coherent-global/:always-auth=true
+          //coherent-global-$AWS_ACCOUNT.d.codeartifact.ap-southeast-1.amazonaws.com/npm/coherent-global/:_authToken=${CODEARTIFACT_AUTH_TOKEN}
+          EOF
+      - uses: actions/upload-artifact@v3
+        with:
+          name: npmrc
+          path: .npmrc

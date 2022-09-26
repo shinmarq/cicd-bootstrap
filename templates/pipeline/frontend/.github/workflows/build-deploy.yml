@@ -1,0 +1,97 @@
+name: Build and Deploy Action
+
+on:
+  workflow_call:
+    secrets:
+      aws-access-key-id:
+        required: true
+      aws-secret-access-key:
+        required: true
+      aws-region:
+        required: true
+      s3-bucket: 
+        required: true
+      cloudfront-dist-id:
+        required: true
+    inputs:
+      env-context:
+        description: Environment context
+        required: true
+        type: string 
+      build-env:
+        description: Build environment
+        required: true
+        type: string 
+      sentry-deployment-env:
+        description: Sentry environment
+        type: string 
+        default: Development
+      sentry-project-name:
+        description: Sentry project name
+        type: string 
+        default: MyProject   
+
+jobs:
+  build:
+    name: Initialize build-${{ inputs.build-env }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "::set-output name=dir::$(yarn cache dir)"
+
+      - name: Restore yarn cache
+        id: yarn-cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build project
+        run: yarn build-${{ inputs.build-env }}
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: build
+          path: ./build
+    
+  deploy:
+    needs: build
+    environment: ${{ inputs.env-context }}
+    name: Deploy and upload
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build file
+        uses: actions/download-artifact@v3
+        with:
+          name: build
+          path: ./build
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.aws-access-key-id }}
+          aws-secret-access-key: ${{ secrets.aws-secret-access-key }}
+          aws-region: ${{ secrets.aws-region }}
+
+      - name: Upload to S3
+        run: |
+          aws s3 sync ./build s3://${{ secrets.s3-bucket }}
+
+      - name: Invalidate necessary files in s3
+        run: |
+          aws cloudfront create-invalidation \
+          --distribution-id ${{ secrets.cloudfront-dist-id }} \
+          --paths "/*"
+
+    
+
+

@@ -1,12 +1,24 @@
-Pipeline bootstrap tool for coherent internal apps
+# Coherent DevOps tool
 
-How to use?
+pipeline bootstrap tool for coherent internal apps
 
-clone
-yarn install
-npm link
+## How to use
+
+clone https://github.com/CoherentCapital/devops-pipeline-bootstrap.git
+
+```bash
+$yarn install
+$npm link
+```
 go to your project folder
 
-Run:
-bootstrap build pipeline # Default for backend/server
-bootstrap build pipeline --tp frontend
+## Usage:
+```bash
+$bootstrap build pipeline # Default for backend/server
+```
+or
+
+```bash
+$bootstrap build pipeline --tp frontend 
+```
+

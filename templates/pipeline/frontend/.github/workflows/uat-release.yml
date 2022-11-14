@@ -2,10 +2,12 @@ name: UAT Releases
 
 on:
   push:
-    branches: # add more branch if necessary
-      - uat
+    # branches: # add more branch if necessary
+    #   - uat
     tags:
       - v[0-9]+.[0-9]+.[0-9]+
+      - v[0-9]+.[0-9]+.[0-9]+-[a-zA-Z]+
+      - v[0-9]+.[0-9]+.[0-9]+-[a-zA-Z]+.[0-9]+
 
 jobs:
   # Enable/Uncomment if project has a test and SonarQube project

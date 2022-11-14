@@ -2,10 +2,13 @@ name: Releases
 
 on:
   push:
-    branches: # add more branch if necessary
-      - release
+    # branches: # add more branch if necessary
+    #   - release
     tags:
       - v[0-9]+.[0-9]+.[0-9]+
+      - v[0-9]+.[0-9]+.[0-9]+
+      - v[0-9]+.[0-9]+.[0-9]+-[a-zA-Z]+
+      - v[0-9]+.[0-9]+.[0-9]+-[a-zA-Z]+.[0-9]+
 
 jobs:
   set-npmrc:

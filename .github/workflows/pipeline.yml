@@ -1,0 +1,104 @@
+name: Promotion
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  init:
+    name: Initialize
+    runs-on: ubuntu-latest
+    steps:
+      - name: Working Branch
+        run: echo Running on branch ${GITHUB_REF_NAME}
+    
+  get-auth-token:
+    needs: init
+    name: Get authorization token
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: get-authorization-token
+        env:
+          AWS_MNL_ACCOUNT: ${{ secrets.AWS_MNL_ACCOUNT }}
+        run: |
+          export CODEARTIFACT_AUTH_TOKEN=`aws codeartifact get-authorization-token --domain coherent-global --domain-owner $AWS_MNL_ACCOUNT --query authorizationToken --output text`
+          cat <<EOF >> .npmrc
+          registry=https://registry.npmjs.org
+          @coherentglobal:registry=https://coherent-global-$AWS_MNL_ACCOUNT.d.codeartifact.ap-southeast-1.amazonaws.com/npm/coherent-global/
+          //coherent-global-$AWS_MNL_ACCOUNT.d.codeartifact.ap-southeast-1.amazonaws.com/npm/coherent-global/:always-auth=true
+          //coherent-global-$AWS_MNL_ACCOUNT.d.codeartifact.ap-southeast-1.amazonaws.com/npm/coherent-global/:_authToken=${CODEARTIFACT_AUTH_TOKEN}
+          EOF
+      - uses: actions/upload-artifact@v3
+        with:
+          name: npmrc
+          path: .npmrc
+
+  Build-and-Publish:
+    needs: [init,get-auth-token]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Download .npmrc file
+        uses: actions/download-artifact@v3
+        with:
+          name: npmrc
+      - name: Install dependencies
+        run: yarn install --no-lockfile
+      - name: Generate Timestamp
+        run: echo TS=$(date +%s) >> $GITHUB_ENV
+      - name: Set branch prefix
+        run: |
+          echo "BRANCH_PREFIX=branch-${GITHUB_REF_NAME}" >> $GITHUB_ENV
+      - name: Set tag names
+        run: |
+          echo "TAG_NAMES=${GITHUB_REF_NAME}-${{ github.sha }}-${{ env.TS }},${{ env.BRANCH_PREFIX }}-${{ github.sha }}" >> $GITHUB_ENV
+      - name:   
+        run: |
+          echo "IMAGE_TAGS=${{ env.TAG_NAMES }},build-${{ github.run_id }},latest" >> $GITHUB_ENV
+      - name: Publish docker image to AWS ECR
+        uses: kciter/aws-ecr-action@v3
+        with:
+          access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          account_id: ${{ secrets.AWS_ACCOUNT_ID }}
+          repo: ${{ secrets.AWS_ECR_REPOSITORY }}
+          region: ${{ secrets.AWS_REGION }}
+          tags: ${{ env.IMAGE_TAGS }}
+          create_repo: false
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.AWS_ECR_REPOSITORY }}:build-${{ github.run_id }}
+          format: 'table'
+          exit-code: '1'
+          vuln-type: 'os,library'
+          severity: 'HIGH,CRITICAL'
+          output: 'vulnerability-report.txt'
+
+      - name: Show Report
+        if: always()
+        run: cat vulnerability-report.txt
+
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: Vulnerablity Report
+          path: ./vulnerability-report.txt
+
+      - name: Notication to Dedicated Teams Channel
+        uses: toko-bifrost/ms-teams-deploy-card@master 
+        if: always()
+        with:
+          github-token: ${{ github.token }}
+          webhook-uri: ${{ secrets.MSTEAMS_WEBHOOK }}
+          show-on-start: false
+          card-layout-exit: complete

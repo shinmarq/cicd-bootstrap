@@ -1,9 +1,9 @@
 {
-  "name": "devops-pipeline-bootstrap",
-  "version": "0.1.0",
-  "description": "Bootsrapping Coherent application pipeline",
+  "name": "@coherentglobal/pipeline-bootstrap-cli",
+  "version": "0.1.1",
+  "description": "DevOps tool for application pipeline bootstrap",
   "main": "index.js",
-  "author": "shin.quipit@coherent.global",
+  "author": "devops-manila",
   "bin": {
     "bootstrap": "index.js"
   },

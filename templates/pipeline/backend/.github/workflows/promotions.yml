@@ -5,6 +5,7 @@ on:
     branches: # add more branch if necessary
       - dev
       - sit
+      - staging
       - uat
 
 jobs:

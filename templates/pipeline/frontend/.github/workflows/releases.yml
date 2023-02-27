@@ -1,0 +1,62 @@
+name: Releases
+
+on:
+  push:
+    branches:
+      - dev
+      - sit
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+
+      - v[0-9]+.[0-9]+.[0-9]+-[a-zA-Z]+
+      - v[0-9]+.[0-9]+.[0-9]+-[a-zA-Z]+.[0-9]+
+
+env: 
+  SENTRY_DEV_URL: https://sentry-dev.devops.coherent.com.hk
+  SENTRY_PROD_URL: https://sentry.devops.coherent.com.hk
+
+jobs:
+  # Enable/Uncomment if project has a test and SonarQube project
+  # test-code-quality:
+  #   uses: ./.github/workflows/test-code-quality.yml
+
+  build-deploy:
+    # needs: test-code-quality
+    if: ${{ github.ref_type == 'branch' }}
+    uses: ./.github/workflows/build-deploy.yml
+    with:
+      env-context: ${{ github.ref_name }}
+      build-env: ${{ github.ref_name }}
+    secrets:
+      aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      aws-region: ${{ secrets.AWS_REGION }}
+      s3-bucket: ${{ secrets.S3_BUCKET }}
+      cloudfront-dist-id: ${{ secrets.CLOUDFRONT_DIST_ID }}
+      
+  build-deploy-uat:
+    # needs: test-code-quality
+    if: ${{ github.ref_type == 'tag' }}
+    uses: ./.github/workflows/build-deploy.yml
+    with:
+      env-context: UAT
+      build-env: uat
+    secrets:
+      aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      aws-region: ${{ secrets.AWS_REGION }}
+      s3-bucket: ${{ secrets.S3_BUCKET }}
+      cloudfront-dist-id: ${{ secrets.CLOUDFRONT_DIST_ID }}
+
+  build-deploy-prod:
+    # needs: test-code-quality
+    if: ${{ github.ref_type == 'tag' }}
+    uses: ./.github/workflows/build-deploy.yml
+    with:
+      env-context: Production
+      build-env: prod
+    secrets:
+      aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      aws-region: ${{ secrets.AWS_REGION }}
+      s3-bucket: ${{ secrets.S3_BUCKET }}
+      cloudfront-dist-id: ${{ secrets.CLOUDFRONT_DIST_ID }}

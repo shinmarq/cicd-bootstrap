@@ -52,6 +52,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-yarn-
 
+      - name: Update version in _details.json
+        if: ${{ (github.ref_type == 'branch' && contains(fromJSON('["dev", "sit"]'), github.ref_name)) || github.ref_type == 'tag' }}
+        run: |
+          echo "This was triggered by $GITHUB_REF_NAME"
+          NEW_CONTENT='{"version": "${{ github.ref_name }}"}'
+          echo "$NEW_CONTENT" > public/_details.json
+          cat public/_details.json
+
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 

@@ -11,8 +11,8 @@ on:
       - v[0-9]+.[0-9]+.[0-9]+-[a-zA-Z]+.[0-9]+
 
 env: 
-  SENTRY_DEV_URL: https://sentry-dev.devops.coherent.com.hk
-  SENTRY_PROD_URL: https://sentry.devops.coherent.com.hk
+  SENTRY_DEV_URL: https://sentry-dev.devops.org
+  SENTRY_PROD_URL: https://sentry.devops.org
 
 jobs:
   # Enable/Uncomment if project has a test and SonarQube project

@@ -1,10 +1,6 @@
-# Coherent DevOps tool
-
-pipeline bootstrap tool for coherent internal apps
-
 ## How to use
 
-clone https://github.com/CoherentCapital/devops-pipeline-bootstrap.git
+clone https://github.com/shinmarq/cicd-bootstrap.git
 
 ```bash
 $yarn install

@@ -1,9 +1,9 @@
 {
-  "name": "@coherentglobal/pipeline-bootstrap-cli",
+  "name": "cicd-bootstrap",
   "version": "0.1.1",
-  "description": "DevOps tool for application pipeline bootstrap",
+  "description": "",
   "main": "index.js",
-  "author": "devops-manila",
+  "author": "",
   "bin": {
     "bootstrap": "index.js"
   },
